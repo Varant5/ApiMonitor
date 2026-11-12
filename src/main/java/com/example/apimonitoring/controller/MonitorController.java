@@ -1,7 +1,10 @@
 package com.example.apimonitoring.controller;
 
+import com.example.apimonitoring.dto.CreateMonitorRequest;
 import com.example.apimonitoring.entity.Monitor;
 import com.example.apimonitoring.service.MonitorService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,5 +22,22 @@ public class MonitorController {
     @GetMapping
     public List<Monitor> getAllMonitors() {
         return monitorService.getAllMonitors();
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Monitor createMonitor(@Valid @RequestBody CreateMonitorRequest request) {
+        return monitorService.createMonitor(request);
+    }
+
+    @GetMapping("/{id}")
+    public Monitor getMonitorById(@PathVariable Long id) {
+        return monitorService.getMonitorById(id);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMonitor(@PathVariable Long id) {
+        monitorService.deleteMonitor(id);
     }
 }

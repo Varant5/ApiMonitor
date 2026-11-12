@@ -25,7 +25,7 @@ public class Monitor {
     private Integer checkIntervalSeconds;
 
     @Column
-    private boolean enable;
+    private boolean enabled = true;
 
     @Column
     private LocalDateTime createdAt;
