@@ -1,5 +1,6 @@
 package com.example.apimonitoring.service;
 
+import com.example.apimonitoring.dto.MonitorStatisticsResponse;
 import com.example.apimonitoring.dto.UpdateMonitorStatusRequest;
 import com.example.apimonitoring.entity.Monitor;
 import com.example.apimonitoring.entity.MonitorCheck;
@@ -9,6 +10,7 @@ import com.example.apimonitoring.monitoring.MonitorHttpClient;
 import com.example.apimonitoring.repository.MonitorCheckRepository;
 import com.example.apimonitoring.repository.MonitorRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import com.example.apimonitoring.dto.CreateMonitorRequest;
 
@@ -77,4 +79,137 @@ public class MonitorService {
 
         return monitorCheckRepository.save(monitorCheck);
     }
+
+    public List<MonitorCheck> getMonitorChecks(Long monitorId) {
+        getMonitorById(monitorId);
+        return monitorCheckRepository
+                .findByMonitorIdOrderByCheckedAtDesc(monitorId);
+    }
+
+    public List<MonitorCheck> getMonitorChecks(Long monitorId, int limit) {
+
+        getMonitorById(monitorId);
+
+        if (limit < 1 || limit > 100) {
+            throw new IllegalArgumentException(
+                    "Limit must be between 1 and 100"
+            );
+        }
+
+        return monitorCheckRepository
+                .findByMonitorIdOrderByCheckedAtDesc(
+                        monitorId,
+                        PageRequest.of(0, limit)
+                );
+    }
+
+    public double calculateUptime(Long monitorId) {
+
+        getMonitorById(monitorId);
+
+        List<MonitorCheck> checks =
+                monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitorId);
+
+        if (checks.isEmpty()) {
+            return 0.0;
+        }
+
+        long successfulChecks = checks.stream()
+                .filter(check -> "UP".equals(check.getStatus()))
+                .count();
+
+        return (double) successfulChecks / checks.size() * 100;
+    }
+
+    public double calculateAverageResponseTime(Long monitorId) {
+
+        getMonitorById(monitorId);
+
+        List<MonitorCheck> checks =
+                monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitorId);
+
+        return checks.stream()
+                .filter(check -> check.getResponseTimeMs() != null)
+                .mapToInt(MonitorCheck::getResponseTimeMs)
+                .average()
+                .orElse(0.0);
+    }
+
+    public int calculateMinResponseTime(Long monitorId) {
+
+        getMonitorById(monitorId);
+
+        List<MonitorCheck> checks =
+                monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitorId);
+
+        return checks.stream()
+                .filter(check -> check.getResponseTimeMs() != null)
+                .mapToInt(MonitorCheck::getResponseTimeMs)
+                .min()
+                .orElse(0);
+    }
+
+    public int calculateMaxResponseTime(Long monitorId) {
+
+        getMonitorById(monitorId);
+
+        List<MonitorCheck> checks =
+                monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitorId);
+
+        return checks.stream()
+                .filter(check -> check.getResponseTimeMs() != null)
+                .mapToInt(MonitorCheck::getResponseTimeMs)
+                .max()
+                .orElse(0);
+    }
+
+    public long countFailedChecks(Long monitorId) {
+
+        getMonitorById(monitorId);
+
+        List<MonitorCheck> checks =
+                monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitorId);
+
+        return checks.stream()
+                .filter(check -> "DOWN".equals(check.getStatus()))
+                .count();
+    }
+
+
+    public MonitorStatisticsResponse getMonitorStatistics(Long monitorId) {
+
+        getMonitorById(monitorId);
+
+        List<MonitorCheck> checks =
+                monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitorId);
+
+        long totalChecks = checks.size();
+
+        long failedChecks = checks.stream()
+                .filter(check -> "DOWN".equals(check.getStatus()))
+                .count();
+
+        long successfulChecks = checks.stream()
+                .filter(check -> "UP".equals(check.getStatus()))
+                .count();
+
+        double uptime = totalChecks == 0
+                ? 0.0
+                : (double) successfulChecks / totalChecks * 100;
+
+        java.util.IntSummaryStatistics responseStats = checks.stream()
+                .filter(check -> check.getResponseTimeMs() != null)
+                .mapToInt(MonitorCheck::getResponseTimeMs)
+                .summaryStatistics();
+
+        return new MonitorStatisticsResponse(
+                totalChecks,
+                failedChecks,
+                uptime,
+                responseStats.getAverage(),
+                responseStats.getCount() == 0 ? 0 : responseStats.getMin(),
+                responseStats.getCount() == 0 ? 0 : responseStats.getMax()
+        );
+    }
+
 }
