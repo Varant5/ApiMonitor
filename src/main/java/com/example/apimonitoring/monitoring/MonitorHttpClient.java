@@ -1,8 +1,12 @@
 package com.example.apimonitoring.monitoring;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -13,19 +17,26 @@ public class MonitorHttpClient {
 
     private final RestClient restClient;
 
-    public MonitorHttpClient(RestClient.Builder builder) {
+    @Autowired
+    public MonitorHttpClient(
+            RestClient.Builder builder,
+            @Value("${monitoring.http.timeout:5s}") Duration timeout
+    ) {
 
         SimpleClientHttpRequestFactory factory =
                 new SimpleClientHttpRequestFactory();
 
-        factory.setConnectTimeout(Duration.ofSeconds(5));
-        factory.setReadTimeout(Duration.ofSeconds(5));
+        factory.setConnectTimeout(timeout);
+        factory.setReadTimeout(timeout);
 
         this.restClient = builder
                 .requestFactory(factory)
                 .build();
     }
 
+    MonitorHttpClient(RestClient restClient) {
+        this.restClient = restClient;
+    }
 
     public MonitorCheckResult checkUrl(String url) {
 
@@ -50,6 +61,28 @@ public class MonitorHttpClient {
                     null
             );
 
+        } catch (HttpServerErrorException e) {
+
+            long responseTime = System.currentTimeMillis() - startTime;
+
+            return new MonitorCheckResult(
+                    MonitorStatus.DOWN,
+                    e.getStatusCode().value(),
+                    responseTime,
+                    e.getMessage()
+            );
+
+        } catch (HttpClientErrorException e) {
+
+            long responseTime = System.currentTimeMillis() - startTime;
+
+            return new MonitorCheckResult(
+                    MonitorStatus.DOWN,
+                    e.getStatusCode().value(),
+                    responseTime,
+                    e.getMessage()
+            );
+
         } catch (RestClientException e) {
 
             long responseTime = System.currentTimeMillis() - startTime;
@@ -62,6 +95,4 @@ public class MonitorHttpClient {
             );
         }
     }
-
-
 }
