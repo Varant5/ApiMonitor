@@ -1,10 +1,10 @@
 package com.example.apimonitoring.controller;
 
 import com.example.apimonitoring.dto.CreateMonitorRequest;
+import com.example.apimonitoring.dto.MonitorCheckResponse;
+import com.example.apimonitoring.dto.MonitorResponse;
 import com.example.apimonitoring.dto.MonitorStatisticsResponse;
 import com.example.apimonitoring.dto.UpdateMonitorStatusRequest;
-import com.example.apimonitoring.entity.Monitor;
-import com.example.apimonitoring.entity.MonitorCheck;
 import com.example.apimonitoring.exception.ErrorResponse;
 import com.example.apimonitoring.service.MonitorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,7 +18,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +44,7 @@ public class MonitorController {
     private static final String CHECK_UP_EXAMPLE = """
             {
               "id": 42,
+              "monitorId": 1,
               "status": "UP",
               "responseTimeMs": 137,
               "httpStatusCode": 200,
@@ -54,8 +54,8 @@ public class MonitorController {
 
     private static final String CHECK_LIST_EXAMPLE = """
             [
-              { "id": 43, "status": "DOWN", "responseTimeMs": 5003, "httpStatusCode": null, "checkedAt": "2026-11-16T10:21:00" },
-              { "id": 42, "status": "UP",   "responseTimeMs": 137,  "httpStatusCode": 200,  "checkedAt": "2026-11-16T10:20:00" }
+              { "id": 43, "monitorId": 1, "status": "DOWN", "responseTimeMs": 5003, "httpStatusCode": null, "checkedAt": "2026-11-16T10:21:00" },
+              { "id": 42, "monitorId": 1, "status": "UP",   "responseTimeMs": 137,  "httpStatusCode": 200,  "checkedAt": "2026-11-16T10:20:00" }
             ]
             """;
 
@@ -95,13 +95,15 @@ public class MonitorController {
             responseCode = "200",
             description = "All registered monitors",
             content = @Content(
-                    array = @ArraySchema(schema = @Schema(implementation = Monitor.class)),
+                    array = @ArraySchema(schema = @Schema(implementation = MonitorResponse.class)),
                     examples = @ExampleObject(value = MONITOR_LIST_EXAMPLE)
             )
     )
     @GetMapping
-    public List<Monitor> getAllMonitors() {
-        return monitorService.getAllMonitors();
+    public List<MonitorResponse> getAllMonitors() {
+        return monitorService.getAllMonitors().stream()
+                .map(MonitorResponse::from)
+                .toList();
     }
 
     @Operation(
@@ -114,7 +116,7 @@ public class MonitorController {
                     responseCode = "201",
                     description = "Monitor created",
                     content = @Content(
-                            schema = @Schema(implementation = Monitor.class),
+                            schema = @Schema(implementation = MonitorResponse.class),
                             examples = @ExampleObject(value = MONITOR_EXAMPLE)
                     )
             ),
@@ -129,8 +131,8 @@ public class MonitorController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Monitor createMonitor(@Valid @RequestBody CreateMonitorRequest request) {
-        return monitorService.createMonitor(request);
+    public MonitorResponse createMonitor(@Valid @RequestBody CreateMonitorRequest request) {
+        return MonitorResponse.from(monitorService.createMonitor(request));
     }
 
     @Operation(summary = "Get a monitor by id")
@@ -139,7 +141,7 @@ public class MonitorController {
                     responseCode = "200",
                     description = "Monitor found",
                     content = @Content(
-                            schema = @Schema(implementation = Monitor.class),
+                            schema = @Schema(implementation = MonitorResponse.class),
                             examples = @ExampleObject(value = MONITOR_EXAMPLE)
                     )
             ),
@@ -153,10 +155,10 @@ public class MonitorController {
             )
     })
     @GetMapping("/{id}")
-    public Monitor getMonitorById(
+    public MonitorResponse getMonitorById(
             @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
     ) {
-        return monitorService.getMonitorById(id);
+        return MonitorResponse.from(monitorService.getMonitorById(id));
     }
 
     @Operation(summary = "Delete a monitor")
@@ -188,7 +190,7 @@ public class MonitorController {
                     responseCode = "200",
                     description = "Monitor updated",
                     content = @Content(
-                            schema = @Schema(implementation = Monitor.class),
+                            schema = @Schema(implementation = MonitorResponse.class),
                             examples = @ExampleObject(value = MONITOR_EXAMPLE)
                     )
             ),
@@ -216,13 +218,11 @@ public class MonitorController {
             )
     })
     @PatchMapping("/{id}")
-    public ResponseEntity<Monitor> updateMonitorStatus(
+    public MonitorResponse updateMonitorStatus(
             @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
             @Valid @RequestBody UpdateMonitorStatusRequest request
     ) {
-        Monitor updatedMonitor = monitorService.updateMonitorStatus(id, request);
-
-        return ResponseEntity.ok(updatedMonitor);
+        return MonitorResponse.from(monitorService.updateMonitorStatus(id, request));
     }
 
 
@@ -237,7 +237,7 @@ public class MonitorController {
                     responseCode = "200",
                     description = "Check executed and saved",
                     content = @Content(
-                            schema = @Schema(implementation = MonitorCheck.class),
+                            schema = @Schema(implementation = MonitorCheckResponse.class),
                             examples = @ExampleObject(value = CHECK_UP_EXAMPLE)
                     )
             ),
@@ -251,10 +251,10 @@ public class MonitorController {
             )
     })
     @PostMapping("/{id}/check")
-    public MonitorCheck checkMonitor(
+    public MonitorCheckResponse checkMonitor(
             @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
     ) {
-        return monitorService.checkMonitor(id);
+        return MonitorCheckResponse.from(monitorService.checkMonitor(id));
     }
 
     @Operation(summary = "Get check history", description = "Returns the most recent checks, newest first.")
@@ -263,7 +263,7 @@ public class MonitorController {
                     responseCode = "200",
                     description = "Check history",
                     content = @Content(
-                            array = @ArraySchema(schema = @Schema(implementation = MonitorCheck.class)),
+                            array = @ArraySchema(schema = @Schema(implementation = MonitorCheckResponse.class)),
                             examples = @ExampleObject(value = CHECK_LIST_EXAMPLE)
                     )
             ),
@@ -285,12 +285,14 @@ public class MonitorController {
             )
     })
     @GetMapping("/{id}/checks")
-    public List<MonitorCheck> getMonitorChecks(
+    public List<MonitorCheckResponse> getMonitorChecks(
             @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
             @Parameter(description = "Maximum number of checks to return (1-100)", example = "20")
             @RequestParam(defaultValue = "20") int limit
     ) {
-        return monitorService.getMonitorChecks(id, limit);
+        return monitorService.getMonitorChecks(id, limit).stream()
+                .map(MonitorCheckResponse::from)
+                .toList();
     }
 
 

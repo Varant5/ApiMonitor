@@ -58,10 +58,7 @@ public class MonitorService {
 
     public MonitorCheck checkMonitor(Long monitorId) {
 
-        Monitor monitor = monitorRepository.findById(monitorId)
-                .orElseThrow(() -> new MonitorNotFoundException(
-                        "Monitor not found with id: " + monitorId
-                ));
+        Monitor monitor = getMonitorById(monitorId);
 
         MonitorCheckResult result = monitorHttpClient.checkUrl(monitor.getUrl());
 

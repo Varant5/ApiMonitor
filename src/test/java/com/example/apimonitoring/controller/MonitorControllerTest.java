@@ -258,6 +258,21 @@ class MonitorControllerTest {
         return monitor;
     }
 
+    @Test
+    void shouldReturnMonitorIdInsteadOfNestedMonitorInCheck() throws Exception {
+
+        MonitorCheck check = createCheck("UP", 200, 120);
+        check.setMonitor(createMonitor(1L, "Google", "https://google.com"));
+
+        when(monitorService.checkMonitor(1L)).thenReturn(check);
+
+        mockMvc.perform(post("/api/monitors/1/check"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.monitorId").value(1))
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.monitor").doesNotExist());
+    }
+
     private MonitorCheck createCheck(String status, int httpCode, int responseTimeMs) {
         MonitorCheck check = new MonitorCheck();
         check.setStatus(status);

@@ -5,63 +5,63 @@ import com.example.apimonitoring.entity.MonitorCheck;
 import com.example.apimonitoring.repository.MonitorCheckRepository;
 import com.example.apimonitoring.service.MonitorService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class MonitorScheduler {
 
     private final MonitorService monitorService;
     private final MonitorCheckRepository monitorCheckRepository;
-    private final Set<Long> monitorsInProgress =
-            ConcurrentHashMap.newKeySet();
+    private final Set<Long> monitorsInProgress = ConcurrentHashMap.newKeySet();
 
     @Scheduled(fixedRate = 10000)
     public void runChecks() {
 
-        List<Monitor> monitors = monitorService.getAllMonitors();
+        for (Monitor monitor : monitorService.getAllMonitors()) {
 
-        for (Monitor monitor : monitors) {
-
-            if (!monitor.isEnabled()) {
+            if (!monitor.isEnabled() || !isCheckDue(monitor)) {
                 continue;
             }
 
-            Optional<MonitorCheck> lastCheck =
-                    monitorCheckRepository
-                            .findTopByMonitorIdOrderByCheckedAtDesc(monitor.getId());
-
-            if (lastCheck.isPresent()) {
-
-                LocalDateTime lastCheckedAt =
-                        lastCheck.get().getCheckedAt();
-
-                LocalDateTime nextCheckAt =
-                        lastCheckedAt.plusSeconds(
-                                monitor.getCheckIntervalSeconds()
-                        );
-
-                if (LocalDateTime.now().isBefore(nextCheckAt)) {
-                    continue;
-                }
+            // zapobiega nakładaniu się sprawdzeń tego samego monitora
+            if (!monitorsInProgress.add(monitor.getId())) {
+                continue;
             }
 
-            System.out.println("Checking monitor: " + monitor.getName());
-
-            if (monitorsInProgress.add(monitor.getId())) {
-                try {
-                    monitorService.checkMonitor(monitor.getId());
-                } finally {
-                    monitorsInProgress.remove(monitor.getId());
-                }
+            try {
+                log.debug("Checking monitor {} ({})", monitor.getId(), monitor.getName());
+                monitorService.checkMonitor(monitor.getId());
+            } catch (Exception e) {
+                // błąd jednego monitora (np. usunięty w trakcie) nie może zatrzymać sprawdzania pozostałych
+                log.warn("Check of monitor {} failed: {}", monitor.getId(), e.getMessage());
+            } finally {
+                monitorsInProgress.remove(monitor.getId());
             }
         }
+    }
+
+    private boolean isCheckDue(Monitor monitor) {
+
+        Optional<MonitorCheck> lastCheck =
+                monitorCheckRepository.findTopByMonitorIdOrderByCheckedAtDesc(monitor.getId());
+
+        if (lastCheck.isEmpty()) {
+            return true;
+        }
+
+        LocalDateTime nextCheckAt = lastCheck.get()
+                .getCheckedAt()
+                .plusSeconds(monitor.getCheckIntervalSeconds());
+
+        return !LocalDateTime.now().isBefore(nextCheckAt);
     }
 }
