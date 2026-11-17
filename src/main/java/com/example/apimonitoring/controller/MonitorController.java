@@ -6,6 +6,7 @@ import com.example.apimonitoring.dto.MonitorResponse;
 import com.example.apimonitoring.dto.MonitorStatisticsResponse;
 import com.example.apimonitoring.dto.UpdateMonitorStatusRequest;
 import com.example.apimonitoring.exception.ErrorResponse;
+import com.example.apimonitoring.security.CurrentUserId;
 import com.example.apimonitoring.service.MonitorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,7 +25,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/monitors")
-@Tag(name = "Monitors", description = "Manage monitored APIs, run checks and read their history and statistics")
+@Tag(name = "Monitors", description = "Manage your monitored APIs, run checks and read their history and statistics. "
+        + "Every user sees only their own monitors; someone else's monitor id returns 404.")
 public class MonitorController {
 
 
@@ -100,8 +102,8 @@ public class MonitorController {
             )
     )
     @GetMapping
-    public List<MonitorResponse> getAllMonitors() {
-        return monitorService.getAllMonitors().stream()
+    public List<MonitorResponse> getAllMonitors(@CurrentUserId Long userId) {
+        return monitorService.getMonitorsOfUser(userId).stream()
                 .map(MonitorResponse::from)
                 .toList();
     }
@@ -131,8 +133,9 @@ public class MonitorController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public MonitorResponse createMonitor(@Valid @RequestBody CreateMonitorRequest request) {
-        return MonitorResponse.from(monitorService.createMonitor(request));
+    public MonitorResponse createMonitor(@Valid @RequestBody CreateMonitorRequest request,
+                                         @CurrentUserId Long userId) {
+        return MonitorResponse.from(monitorService.createMonitor(request, userId));
     }
 
     @Operation(summary = "Get a monitor by id")
@@ -156,9 +159,10 @@ public class MonitorController {
     })
     @GetMapping("/{id}")
     public MonitorResponse getMonitorById(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return MonitorResponse.from(monitorService.getMonitorById(id));
+        return MonitorResponse.from(monitorService.getMonitorById(id, userId));
     }
 
     @Operation(summary = "Delete a monitor")
@@ -176,9 +180,10 @@ public class MonitorController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMonitor(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        monitorService.deleteMonitor(id);
+        monitorService.deleteMonitor(id, userId);
     }
 
     @Operation(
@@ -220,9 +225,10 @@ public class MonitorController {
     @PatchMapping("/{id}")
     public MonitorResponse updateMonitorStatus(
             @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
-            @Valid @RequestBody UpdateMonitorStatusRequest request
+            @Valid @RequestBody UpdateMonitorStatusRequest request,
+            @CurrentUserId Long userId
     ) {
-        return MonitorResponse.from(monitorService.updateMonitorStatus(id, request));
+        return MonitorResponse.from(monitorService.updateMonitorStatus(id, request, userId));
     }
 
 
@@ -252,9 +258,10 @@ public class MonitorController {
     })
     @PostMapping("/{id}/check")
     public MonitorCheckResponse checkMonitor(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return MonitorCheckResponse.from(monitorService.checkMonitor(id));
+        return MonitorCheckResponse.from(monitorService.checkMonitor(id, userId));
     }
 
     @Operation(summary = "Get check history", description = "Returns the most recent checks, newest first.")
@@ -288,9 +295,10 @@ public class MonitorController {
     public List<MonitorCheckResponse> getMonitorChecks(
             @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
             @Parameter(description = "Maximum number of checks to return (1-100)", example = "20")
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(defaultValue = "20") int limit,
+            @CurrentUserId Long userId
     ) {
-        return monitorService.getMonitorChecks(id, limit).stream()
+        return monitorService.getMonitorChecks(id, limit, userId).stream()
                 .map(MonitorCheckResponse::from)
                 .toList();
     }
@@ -318,9 +326,10 @@ public class MonitorController {
     })
     @GetMapping("/{id}/statistics")
     public MonitorStatisticsResponse getMonitorStatistics(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return monitorService.getMonitorStatistics(id);
+        return monitorService.getMonitorStatistics(id, userId);
     }
 
     @Operation(summary = "Get uptime", description = "Percentage (0-100) of checks with status `UP`.")
@@ -328,9 +337,10 @@ public class MonitorController {
             content = @Content(examples = @ExampleObject(value = "98.5")))
     @GetMapping("/{id}/uptime")
     public double getMonitorUptime(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return monitorService.calculateUptime(id);
+        return monitorService.calculateUptime(id, userId);
     }
 
     @Operation(summary = "Get average response time", description = "Average response time in milliseconds.")
@@ -338,9 +348,10 @@ public class MonitorController {
             content = @Content(examples = @ExampleObject(value = "142.7")))
     @GetMapping("/{id}/average-response-time")
     public double getAverageResponseTime(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return monitorService.calculateAverageResponseTime(id);
+        return monitorService.calculateAverageResponseTime(id, userId);
     }
 
     @Operation(summary = "Get minimum response time", description = "Fastest response time in milliseconds.")
@@ -348,9 +359,10 @@ public class MonitorController {
             content = @Content(examples = @ExampleObject(value = "89")))
     @GetMapping("/{id}/min-response-time")
     public int getMinResponseTime(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return monitorService.calculateMinResponseTime(id);
+        return monitorService.calculateMinResponseTime(id, userId);
     }
 
     @Operation(summary = "Get maximum response time", description = "Slowest response time in milliseconds.")
@@ -358,9 +370,10 @@ public class MonitorController {
             content = @Content(examples = @ExampleObject(value = "512")))
     @GetMapping("/{id}/max-response-time")
     public int getMaxResponseTime(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return monitorService.calculateMaxResponseTime(id);
+        return monitorService.calculateMaxResponseTime(id, userId);
     }
 
     @Operation(summary = "Count failed checks", description = "Number of checks with status `DOWN`.")
@@ -368,8 +381,9 @@ public class MonitorController {
             content = @Content(examples = @ExampleObject(value = "3")))
     @GetMapping("/{id}/failed-checks")
     public long getFailedChecks(
-            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id
+            @Parameter(description = "Monitor id", example = "1") @PathVariable Long id,
+            @CurrentUserId Long userId
     ) {
-        return monitorService.countFailedChecks(id);
+        return monitorService.countFailedChecks(id, userId);
     }
 }

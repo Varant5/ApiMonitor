@@ -3,6 +3,8 @@ package com.example.apimonitoring.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 
@@ -29,6 +31,11 @@ public class Monitor {
 
     @Column
     private LocalDateTime createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE) // deleting a user deletes their monitors
+    private User owner;
 
     @PrePersist
     public void onCreate() {

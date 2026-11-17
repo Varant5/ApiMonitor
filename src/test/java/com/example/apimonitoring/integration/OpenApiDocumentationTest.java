@@ -45,6 +45,17 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void shouldNotExposeCurrentUserIdAsParameter() throws Exception {
+
+        // userId comes from the JWT (@CurrentUserId), the client must not be able to send it
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/monitors'].get.parameters").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/monitors/{id}'].get.parameters.length()").value(1))
+                .andExpect(jsonPath("$.paths['/api/monitors/{id}'].get.parameters[0].name").value("id"));
+    }
+
+    @Test
     void shouldExposeSwaggerUi() throws Exception {
 
         mockMvc.perform(get("/swagger-ui/index.html"))

@@ -26,22 +26,20 @@ public class MonitorScheduler {
     @Scheduled(fixedRate = 10000)
     public void runChecks() {
 
-        for (Monitor monitor : monitorService.getAllMonitors()) {
+        for (Monitor monitor : monitorService.getAllMonitorsForScheduling()) {
 
             if (!monitor.isEnabled() || !isCheckDue(monitor)) {
                 continue;
             }
 
-            // zapobiega nakładaniu się sprawdzeń tego samego monitora
             if (!monitorsInProgress.add(monitor.getId())) {
                 continue;
             }
 
             try {
                 log.debug("Checking monitor {} ({})", monitor.getId(), monitor.getName());
-                monitorService.checkMonitor(monitor.getId());
+                monitorService.runScheduledCheck(monitor.getId());
             } catch (Exception e) {
-                // błąd jednego monitora (np. usunięty w trakcie) nie może zatrzymać sprawdzania pozostałych
                 log.warn("Check of monitor {} failed: {}", monitor.getId(), e.getMessage());
             } finally {
                 monitorsInProgress.remove(monitor.getId());

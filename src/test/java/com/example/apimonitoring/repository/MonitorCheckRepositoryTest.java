@@ -4,6 +4,7 @@ import com.example.apimonitoring.TestcontainersConfiguration;
 import org.springframework.context.annotation.Import;
 import com.example.apimonitoring.entity.Monitor;
 import com.example.apimonitoring.entity.MonitorCheck;
+import com.example.apimonitoring.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,8 +35,13 @@ class MonitorCheckRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        monitor = entityManager.persist(createMonitor("Google", "https://google.com"));
-        otherMonitor = entityManager.persist(createMonitor("GitHub", "https://github.com"));
+        User owner = new User();
+        owner.setEmail("owner@example.com");
+        owner.setPasswordHash("not-relevant-here");
+        entityManager.persist(owner);
+
+        monitor = entityManager.persist(createMonitor("Google", "https://google.com", owner));
+        otherMonitor = entityManager.persist(createMonitor("GitHub", "https://github.com", owner));
     }
 
     @Test
@@ -101,11 +107,12 @@ class MonitorCheckRepositoryTest {
         assertThat(result).isEmpty();
     }
 
-    private Monitor createMonitor(String name, String url) {
+    private Monitor createMonitor(String name, String url, User owner) {
         Monitor m = new Monitor();
         m.setName(name);
         m.setUrl(url);
         m.setCheckIntervalSeconds(60);
+        m.setOwner(owner);
         return m;
     }
 

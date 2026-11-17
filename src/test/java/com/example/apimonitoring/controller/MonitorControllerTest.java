@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
+import com.example.apimonitoring.security.WithMockJwtUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,9 +29,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(MonitorController.class)
-@Import(SecurityConfig.class)   // our real security rules, not Spring Boot's defaults
-@WithMockUser                   // every request runs as a logged-in user
+@Import(SecurityConfig.class)       // our real security rules, not Spring Boot's defaults
+@WithMockJwtUser(userId = 1)        // every request runs as logged-in user with id 1
 class MonitorControllerTest {
+
+    private static final Long USER_ID = 1L;
 
     @Autowired
     private MockMvc mockMvc;
@@ -42,7 +44,7 @@ class MonitorControllerTest {
     @Test
     void shouldReturnAllMonitors() throws Exception {
 
-        when(monitorService.getAllMonitors()).thenReturn(List.of(
+        when(monitorService.getMonitorsOfUser(USER_ID)).thenReturn(List.of(
                 createMonitor(1L, "Google", "https://google.com"),
                 createMonitor(2L, "GitHub", "https://github.com")
         ));
@@ -57,7 +59,7 @@ class MonitorControllerTest {
     @Test
     void shouldReturnMonitorById() throws Exception {
 
-        when(monitorService.getMonitorById(1L))
+        when(monitorService.getMonitorById(1L, USER_ID))
                 .thenReturn(createMonitor(1L, "Google", "https://google.com"));
 
         mockMvc.perform(get("/api/monitors/1"))
@@ -70,7 +72,7 @@ class MonitorControllerTest {
     @Test
     void shouldReturn404WhenMonitorDoesNotExist() throws Exception {
 
-        when(monitorService.getMonitorById(99L))
+        when(monitorService.getMonitorById(99L, USER_ID))
                 .thenThrow(new MonitorNotFoundException("Monitor with id 99 not found"));
 
         mockMvc.perform(get("/api/monitors/99"))
@@ -83,7 +85,7 @@ class MonitorControllerTest {
     @Test
     void shouldCreateMonitor() throws Exception {
 
-        when(monitorService.createMonitor(any(CreateMonitorRequest.class)))
+        when(monitorService.createMonitor(any(CreateMonitorRequest.class), eq(USER_ID)))
                 .thenReturn(createMonitor(1L, "Google", "https://google.com"));
 
         String body = """
@@ -101,7 +103,8 @@ class MonitorControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Google"));
 
-        verify(monitorService).createMonitor(any(CreateMonitorRequest.class));
+        // the monitor is created for the logged-in user (id from the JWT)
+        verify(monitorService).createMonitor(any(CreateMonitorRequest.class), eq(USER_ID));
     }
 
     @Test
@@ -155,14 +158,14 @@ class MonitorControllerTest {
         mockMvc.perform(delete("/api/monitors/1"))
                 .andExpect(status().isNoContent());
 
-        verify(monitorService).deleteMonitor(1L);
+        verify(monitorService).deleteMonitor(1L, USER_ID);
     }
 
     @Test
     void shouldReturn404WhenDeletingNonExistingMonitor() throws Exception {
 
         doThrow(new MonitorNotFoundException("Monitor with id 99 not found"))
-                .when(monitorService).deleteMonitor(99L);
+                .when(monitorService).deleteMonitor(99L, USER_ID);
 
         mockMvc.perform(delete("/api/monitors/99"))
                 .andExpect(status().isNotFound());
@@ -174,7 +177,7 @@ class MonitorControllerTest {
         Monitor disabled = createMonitor(1L, "Google", "https://google.com");
         disabled.setEnabled(false);
 
-        when(monitorService.updateMonitorStatus(eq(1L), any(UpdateMonitorStatusRequest.class)))
+        when(monitorService.updateMonitorStatus(eq(1L), any(UpdateMonitorStatusRequest.class), eq(USER_ID)))
                 .thenReturn(disabled);
 
         mockMvc.perform(patch("/api/monitors/1")
@@ -201,7 +204,7 @@ class MonitorControllerTest {
     @Test
     void shouldReturnChecksWithDefaultLimit() throws Exception {
 
-        when(monitorService.getMonitorChecks(1L, 20))
+        when(monitorService.getMonitorChecks(1L, 20, USER_ID))
                 .thenReturn(List.of(createCheck("UP", 200, 120)));
 
         mockMvc.perform(get("/api/monitors/1/checks"))
@@ -210,13 +213,13 @@ class MonitorControllerTest {
                 .andExpect(jsonPath("$[0].status").value("UP"))
                 .andExpect(jsonPath("$[0].httpStatusCode").value(200));
 
-        verify(monitorService).getMonitorChecks(1L, 20);
+        verify(monitorService).getMonitorChecks(1L, 20, USER_ID);
     }
 
     @Test
     void shouldReturn400WhenLimitIsOutOfRange() throws Exception {
 
-        when(monitorService.getMonitorChecks(1L, 500))
+        when(monitorService.getMonitorChecks(1L, 500, USER_ID))
                 .thenThrow(new IllegalArgumentException("Limit must be between 1 and 100"));
 
         mockMvc.perform(get("/api/monitors/1/checks").param("limit", "500"))
@@ -229,19 +232,19 @@ class MonitorControllerTest {
     @Test
     void shouldPassCustomLimitToService() throws Exception {
 
-        when(monitorService.getMonitorChecks(1L, 5)).thenReturn(List.of());
+        when(monitorService.getMonitorChecks(1L, 5, USER_ID)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/monitors/1/checks").param("limit", "5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
 
-        verify(monitorService).getMonitorChecks(1L, 5);
+        verify(monitorService).getMonitorChecks(1L, 5, USER_ID);
     }
 
     @Test
     void shouldReturnMonitorStatistics() throws Exception {
 
-        when(monitorService.getMonitorStatistics(1L))
+        when(monitorService.getMonitorStatistics(1L, USER_ID))
                 .thenReturn(new MonitorStatisticsResponse(10, 2, 80.0, 150.5, 90, 300));
 
         mockMvc.perform(get("/api/monitors/1/statistics"))
@@ -269,7 +272,7 @@ class MonitorControllerTest {
         MonitorCheck check = createCheck("UP", 200, 120);
         check.setMonitor(createMonitor(1L, "Google", "https://google.com"));
 
-        when(monitorService.checkMonitor(1L)).thenReturn(check);
+        when(monitorService.checkMonitor(1L, USER_ID)).thenReturn(check);
 
         mockMvc.perform(post("/api/monitors/1/check"))
                 .andExpect(status().isOk())
