@@ -134,6 +134,21 @@ class MonitorOwnershipIntegrationTest {
     }
 
     @Test
+    void dashboardShouldOnlyIncludeOwnMonitors() throws Exception {
+
+        mockMvc.perform(get("/api/dashboard").header(HttpHeaders.AUTHORIZATION, "Bearer " + aliceToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalMonitors").value(1))
+                .andExpect(jsonPath("$.pending").value(1))
+                .andExpect(jsonPath("$.monitors[0].name").value("Alice's API"));
+
+        mockMvc.perform(get("/api/dashboard").header(HttpHeaders.AUTHORIZATION, "Bearer " + bobToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalMonitors").value(0))
+                .andExpect(jsonPath("$.monitors", hasSize(0)));
+    }
+
+    @Test
     void ownerShouldStillHaveFullAccess() throws Exception {
 
         mockMvc.perform(get("/api/monitors/{id}", alicesMonitorId)
