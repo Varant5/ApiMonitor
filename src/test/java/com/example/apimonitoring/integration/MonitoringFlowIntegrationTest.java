@@ -38,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
         "monitoring.scheduler.enabled=false",
+        "monitoring.notifications.enabled=false", // covered by NotificationIntegrationTest
         "spring.jpa.show-sql=false"
 })
 @AutoConfigureMockMvc

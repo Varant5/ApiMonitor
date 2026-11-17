@@ -16,9 +16,12 @@ import com.example.apimonitoring.repository.UserRepository;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.example.apimonitoring.notification.MonitorStatusChangedEvent;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
@@ -44,6 +47,9 @@ class MonitorServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private MonitorService monitorService;
@@ -294,6 +300,71 @@ class MonitorServiceTest {
         assertEquals(2, monitorService.getAllMonitorsForScheduling().size());
     }
 
+    // ---------- status change notifications ----------
+
+    @Test
+    void shouldPublishEventWhenMonitorGoesDown() {
+
+        givenCheckOfOwnedMonitor("UP", new MonitorCheckResult(MonitorStatus.DOWN, 503, 40L, "Service Unavailable"));
+
+        monitorService.runScheduledCheck(1L);
+
+        ArgumentCaptor<MonitorStatusChangedEvent> captor = ArgumentCaptor.forClass(MonitorStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+
+        MonitorStatusChangedEvent event = captor.getValue();
+        assertEquals(1L, event.monitorId());
+        assertEquals(USER_ID, event.ownerId());
+        assertEquals("UP", event.previousStatus());
+        assertEquals("DOWN", event.currentStatus());
+        assertEquals(503, event.httpStatusCode());
+        assertEquals("Service Unavailable", event.errorMessage());
+        assertFalse(event.isRecovery());
+    }
+
+    @Test
+    void shouldPublishRecoveryEventWhenMonitorComesBackUp() {
+
+        givenCheckOfOwnedMonitor("DOWN", new MonitorCheckResult(MonitorStatus.UP, 200, 90L, null));
+
+        monitorService.runScheduledCheck(1L);
+
+        ArgumentCaptor<MonitorStatusChangedEvent> captor = ArgumentCaptor.forClass(MonitorStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertTrue(captor.getValue().isRecovery());
+    }
+
+    @Test
+    void shouldNotPublishEventWhenStatusDoesNotChange() {
+
+        givenCheckOfOwnedMonitor("DOWN", new MonitorCheckResult(MonitorStatus.DOWN, 500, 40L, "error"));
+
+        monitorService.runScheduledCheck(1L);
+
+        // still down -> no second "DOWN" email every minute
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldNotPublishEventForFirstSuccessfulCheck() {
+
+        givenCheckOfOwnedMonitor(null, new MonitorCheckResult(MonitorStatus.UP, 200, 90L, null));
+
+        monitorService.runScheduledCheck(1L);
+
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void shouldPublishEventWhenFirstCheckIsAlreadyDown() {
+
+        givenCheckOfOwnedMonitor(null, new MonitorCheckResult(MonitorStatus.DOWN, null, 5000L, "Read timed out"));
+
+        monitorService.runScheduledCheck(1L);
+
+        verify(eventPublisher).publishEvent(any(MonitorStatusChangedEvent.class));
+    }
+
     // ---------- history ----------
 
     @Test
@@ -457,6 +528,33 @@ class MonitorServiceTest {
     }
 
     // ---------- helpers ----------
+
+    /**
+     * Monitor 1 (owned by USER_ID) whose last stored check had {@code previousStatus}
+     * (null = never checked) and whose next HTTP check returns {@code nextResult}.
+     */
+    private void givenCheckOfOwnedMonitor(String previousStatus, MonitorCheckResult nextResult) {
+
+        User owner = new User();
+        owner.setId(USER_ID);
+
+        Monitor monitor = createMonitor(1L, "Google");
+        monitor.setUrl("https://google.com");
+        monitor.setOwner(owner);
+
+        when(monitorRepository.findById(1L)).thenReturn(Optional.of(monitor));
+        when(monitorCheckRepository.findTopByMonitorIdOrderByCheckedAtDesc(1L))
+                .thenReturn(Optional.ofNullable(previousStatus).map(this::checkWithStatus));
+        when(monitorHttpClient.checkUrl("https://google.com")).thenReturn(nextResult);
+        when(monitorCheckRepository.save(any(MonitorCheck.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    private MonitorCheck checkWithStatus(String status) {
+        MonitorCheck check = new MonitorCheck();
+        check.setStatus(status);
+        return check;
+    }
 
     /** Monitor 1 belongs to USER_ID and has the given check history. */
     private void givenMonitorWithChecks(List<MonitorCheck> checks) {

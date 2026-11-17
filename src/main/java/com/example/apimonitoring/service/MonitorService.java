@@ -8,10 +8,12 @@ import com.example.apimonitoring.entity.MonitorCheck;
 import com.example.apimonitoring.exception.MonitorNotFoundException;
 import com.example.apimonitoring.monitoring.MonitorCheckResult;
 import com.example.apimonitoring.monitoring.MonitorHttpClient;
+import com.example.apimonitoring.notification.MonitorStatusChangedEvent;
 import com.example.apimonitoring.repository.MonitorCheckRepository;
 import com.example.apimonitoring.repository.MonitorRepository;
 import com.example.apimonitoring.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +32,7 @@ public class MonitorService {
     private final MonitorCheckRepository monitorCheckRepository;
     private final MonitorHttpClient monitorHttpClient;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ---------- monitors ----------
 
@@ -94,6 +97,12 @@ public class MonitorService {
 
     private MonitorCheck performCheck(Monitor monitor) {
 
+        // status before this check — needed to detect UP -> DOWN and DOWN -> UP
+        String previousStatus = monitorCheckRepository
+                .findTopByMonitorIdOrderByCheckedAtDesc(monitor.getId())
+                .map(MonitorCheck::getStatus)
+                .orElse(null);
+
         MonitorCheckResult result = monitorHttpClient.checkUrl(monitor.getUrl());
 
         MonitorCheck monitorCheck = new MonitorCheck();
@@ -108,7 +117,23 @@ public class MonitorService {
             );
         }
 
-        return monitorCheckRepository.save(monitorCheck);
+        MonitorCheck saved = monitorCheckRepository.save(monitorCheck);
+
+        if (MonitorStatusChangedEvent.isWorthNotifying(previousStatus, saved.getStatus())) {
+            eventPublisher.publishEvent(new MonitorStatusChangedEvent(
+                    monitor.getId(),
+                    monitor.getName(),
+                    monitor.getUrl(),
+                    monitor.getOwner() != null ? monitor.getOwner().getId() : null,
+                    previousStatus,
+                    saved.getStatus(),
+                    saved.getHttpStatusCode(),
+                    result.getErrorMessage(),
+                    saved.getCheckedAt()
+            ));
+        }
+
+        return saved;
     }
 
     public List<MonitorCheck> getMonitorChecks(Long monitorId, Long userId) {

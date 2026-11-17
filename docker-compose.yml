@@ -16,12 +16,24 @@ services:
       timeout: 3s
       retries: 10
 
+  # Fake SMTP server for development: catches every email the app sends.
+  # Inbox in the browser: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.33.0
+    ports:
+      - "8025:8025"   # web UI
+      - "1025:1025"   # SMTP
+
   app:
     build: .
     depends_on:
       db:
         condition: service_healthy   # start the app only when PostgreSQL accepts connections
+      mailpit:
+        condition: service_started
     environment:
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
       DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-apimonitoring}
       DB_USERNAME: ${POSTGRES_USER:-apimonitoring}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-apimonitoring}
