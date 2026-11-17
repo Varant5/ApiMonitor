@@ -12,6 +12,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -25,18 +26,20 @@ import java.time.format.DateTimeFormatter;
 @ConditionalOnProperty(name = "monitoring.notifications.enabled", havingValue = "true", matchIfMissing = true)
 public class EmailNotificationListener {
 
-    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
     private final JavaMailSender mailSender;
     private final UserRepository userRepository;
     private final String fromAddress;
+    /** Times in emails are shown in this zone, with the zone name appended (e.g. "14:30:05 CET"). */
+    private final DateTimeFormatter timeFormat;
 
     public EmailNotificationListener(JavaMailSender mailSender,
                                      UserRepository userRepository,
-                                     @Value("${monitoring.notifications.from}") String fromAddress) {
+                                     @Value("${monitoring.notifications.from}") String fromAddress,
+                                     @Value("${monitoring.notifications.time-zone}") ZoneId timeZone) {
         this.mailSender = mailSender;
         this.userRepository = userRepository;
         this.fromAddress = fromAddress;
+        this.timeFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(timeZone);
     }
 
     @Async
@@ -80,7 +83,7 @@ public class EmailNotificationListener {
                     event.monitorName(),
                     event.monitorUrl(),
                     event.httpStatusCode(),
-                    event.checkedAt().format(TIME_FORMAT)));
+                    timeFormat.format(event.checkedAt())));
         } else {
             message.setSubject("[DOWN] " + event.monitorName() + " is not responding");
             message.setText("""
@@ -99,7 +102,7 @@ public class EmailNotificationListener {
                     event.monitorUrl(),
                     event.httpStatusCode() != null ? event.httpStatusCode() : "no response",
                     event.errorMessage() != null ? event.errorMessage() : "-",
-                    event.checkedAt().format(TIME_FORMAT)));
+                    timeFormat.format(event.checkedAt())));
         }
 
         return message;

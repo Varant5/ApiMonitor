@@ -12,7 +12,8 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,7 +32,7 @@ class MonitorCheckRepositoryTest {
     private Monitor monitor;
     private Monitor otherMonitor;
 
-    private final LocalDateTime baseTime = LocalDateTime.of(2026, 1, 1, 12, 0);
+    private final Instant baseTime = Instant.parse("2026-01-01T12:00:00Z");
 
     @BeforeEach
     void setUp() {
@@ -48,8 +49,8 @@ class MonitorCheckRepositoryTest {
     void shouldReturnChecksOfMonitorOrderedFromNewest() {
 
         MonitorCheck oldest = createCheck(monitor, "UP", baseTime);
-        MonitorCheck newest = createCheck(monitor, "DOWN", baseTime.plusMinutes(2));
-        MonitorCheck middle = createCheck(monitor, "UP", baseTime.plusMinutes(1));
+        MonitorCheck newest = createCheck(monitor, "DOWN", baseTime.plus(2, ChronoUnit.MINUTES));
+        MonitorCheck middle = createCheck(monitor, "UP", baseTime.plus(1, ChronoUnit.MINUTES));
 
         List<MonitorCheck> result =
                 monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitor.getId());
@@ -61,7 +62,7 @@ class MonitorCheckRepositoryTest {
     void shouldNotReturnChecksOfOtherMonitors() {
 
         MonitorCheck ownCheck = createCheck(monitor, "UP", baseTime);
-        createCheck(otherMonitor, "UP", baseTime.plusMinutes(1));
+        createCheck(otherMonitor, "UP", baseTime.plus(1, ChronoUnit.MINUTES));
 
         List<MonitorCheck> result =
                 monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(monitor.getId());
@@ -73,8 +74,8 @@ class MonitorCheckRepositoryTest {
     void shouldLimitNumberOfReturnedChecks() {
 
         createCheck(monitor, "UP", baseTime);
-        MonitorCheck second = createCheck(monitor, "UP", baseTime.plusMinutes(1));
-        MonitorCheck third = createCheck(monitor, "UP", baseTime.plusMinutes(2));
+        MonitorCheck second = createCheck(monitor, "UP", baseTime.plus(1, ChronoUnit.MINUTES));
+        MonitorCheck third = createCheck(monitor, "UP", baseTime.plus(2, ChronoUnit.MINUTES));
 
         List<MonitorCheck> result = monitorCheckRepository.findByMonitorIdOrderByCheckedAtDesc(
                 monitor.getId(),
@@ -88,8 +89,8 @@ class MonitorCheckRepositoryTest {
     void shouldFindLatestCheckOfMonitor() {
 
         createCheck(monitor, "UP", baseTime);
-        MonitorCheck latest = createCheck(monitor, "DOWN", baseTime.plusMinutes(5));
-        createCheck(otherMonitor, "UP", baseTime.plusMinutes(10));
+        MonitorCheck latest = createCheck(monitor, "DOWN", baseTime.plus(5, ChronoUnit.MINUTES));
+        createCheck(otherMonitor, "UP", baseTime.plus(10, ChronoUnit.MINUTES));
 
         Optional<MonitorCheck> result =
                 monitorCheckRepository.findTopByMonitorIdOrderByCheckedAtDesc(monitor.getId());
@@ -116,7 +117,7 @@ class MonitorCheckRepositoryTest {
         return m;
     }
 
-    private MonitorCheck createCheck(Monitor owner, String status, LocalDateTime checkedAt) {
+    private MonitorCheck createCheck(Monitor owner, String status, Instant checkedAt) {
         MonitorCheck check = new MonitorCheck();
         check.setMonitor(owner);
         check.setStatus(status);

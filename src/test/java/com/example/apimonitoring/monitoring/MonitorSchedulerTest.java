@@ -10,7 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -94,7 +94,7 @@ class MonitorSchedulerTest {
 
     private void givenLastCheckSecondsAgo(Long monitorId, double seconds) {
         MonitorCheck last = new MonitorCheck();
-        last.setCheckedAt(LocalDateTime.now().minusNanos((long) (seconds * 1_000_000_000)));
+        last.setCheckedAt(Instant.now().minusNanos((long) (seconds * 1_000_000_000)));
         when(monitorCheckRepository.findTopByMonitorIdOrderByCheckedAtDesc(monitorId)).thenReturn(Optional.of(last));
     }
 

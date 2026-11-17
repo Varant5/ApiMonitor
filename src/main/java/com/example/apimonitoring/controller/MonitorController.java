@@ -37,7 +37,7 @@ public class MonitorController {
               "url": "https://api.github.com",
               "checkIntervalSeconds": 60,
               "enabled": true,
-              "createdAt": "2026-11-16T10:15:30"
+              "createdAt": "2026-11-16T10:15:30Z"
             }
             """;
 
@@ -50,14 +50,14 @@ public class MonitorController {
               "status": "UP",
               "responseTimeMs": 137,
               "httpStatusCode": 200,
-              "checkedAt": "2026-11-16T10:20:00"
+              "checkedAt": "2026-11-16T10:20:00Z"
             }
             """;
 
     private static final String CHECK_LIST_EXAMPLE = """
             [
-              { "id": 43, "monitorId": 1, "status": "DOWN", "responseTimeMs": 5003, "httpStatusCode": null, "checkedAt": "2026-11-16T10:21:00" },
-              { "id": 42, "monitorId": 1, "status": "UP",   "responseTimeMs": 137,  "httpStatusCode": 200,  "checkedAt": "2026-11-16T10:20:00" }
+              { "id": 43, "monitorId": 1, "status": "DOWN", "responseTimeMs": 5003, "httpStatusCode": null, "checkedAt": "2026-11-16T10:21:00Z" },
+              { "id": 42, "monitorId": 1, "status": "UP",   "responseTimeMs": 137,  "httpStatusCode": 200,  "checkedAt": "2026-11-16T10:20:00Z" }
             ]
             """;
 

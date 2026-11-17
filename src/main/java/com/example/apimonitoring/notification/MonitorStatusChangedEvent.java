@@ -1,6 +1,6 @@
 package com.example.apimonitoring.notification;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * Published when a monitor goes DOWN or comes back UP.
@@ -20,7 +20,7 @@ public record MonitorStatusChangedEvent(
         String currentStatus,
         Integer httpStatusCode,
         String errorMessage,
-        LocalDateTime checkedAt
+        Instant checkedAt
 ) {
 
     public boolean isRecovery() {

@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,11 +68,11 @@ public class MonitorScheduler {
             return true;
         }
 
-        LocalDateTime nextCheckAt = lastCheck.get()
+        Instant nextCheckAt = lastCheck.get()
                 .getCheckedAt()
                 .plusSeconds(monitor.getCheckIntervalSeconds())
                 .minus(TOLERANCE);
 
-        return !LocalDateTime.now().isBefore(nextCheckAt);
+        return !Instant.now().isBefore(nextCheckAt);
     }
 }

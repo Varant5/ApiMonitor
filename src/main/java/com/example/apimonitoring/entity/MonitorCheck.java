@@ -6,7 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Getter
@@ -30,11 +30,11 @@ public class MonitorCheck {
     private Integer httpStatusCode;
 
     @Column(nullable = false)
-    private LocalDateTime checkedAt;
+    private Instant checkedAt;
 
     @PrePersist
     public void onCreate() {
-        this.checkedAt = LocalDateTime.now();
+        this.checkedAt = Instant.now();
     }
 
     public MonitorCheck() {

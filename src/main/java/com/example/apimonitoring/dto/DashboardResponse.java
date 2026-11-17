@@ -2,7 +2,7 @@ package com.example.apimonitoring.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Schema(description = "Overview of all monitors of the logged-in user")
@@ -51,8 +51,8 @@ public record DashboardResponse(
                     example = "UP", nullable = true, allowableValues = {"UP", "DOWN"})
             String lastStatus,
 
-            @Schema(example = "2026-11-17T10:20:00", nullable = true)
-            LocalDateTime lastCheckedAt,
+            @Schema(example = "2026-11-17T10:20:00Z", nullable = true)
+            Instant lastCheckedAt,
 
             @Schema(example = "137", nullable = true)
             Integer lastResponseTimeMs,

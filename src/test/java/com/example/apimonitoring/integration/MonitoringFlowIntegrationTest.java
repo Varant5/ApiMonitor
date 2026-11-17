@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -118,7 +119,9 @@ class MonitoringFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.httpStatusCode").value(200))
-                .andExpect(jsonPath("$.responseTimeMs").isNumber());
+                .andExpect(jsonPath("$.responseTimeMs").isNumber())
+                // ISO-8601 instant in UTC, e.g. "2026-11-17T13:15:21.123456Z" — no ambiguity about the zone
+                .andExpect(jsonPath("$.checkedAt").value(matchesPattern("\\d{4}-\\d{2}-\\d{2}T[\\d:.]+Z")));
 
         fakeApiStatus.set(500);
 

@@ -12,7 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 class DashboardServiceTest {
 
     private static final Long USER_ID = 1L;
-    private static final LocalDateTime NOW = LocalDateTime.of(2026, 11, 17, 12, 0);
+    private static final Instant NOW = Instant.parse("2026-11-17T12:00:00Z");
 
     @Mock
     private MonitorRepository monitorRepository;

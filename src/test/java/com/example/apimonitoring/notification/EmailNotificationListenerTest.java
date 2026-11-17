@@ -12,7 +12,8 @@ import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,7 +25,8 @@ import static org.mockito.Mockito.*;
 class EmailNotificationListenerTest {
 
     private static final String FROM = "alerts@api-monitoring.local";
-    private static final LocalDateTime CHECKED_AT = LocalDateTime.of(2026, 11, 17, 14, 30, 5);
+    /** 13:30:05 UTC = 14:30:05 in Poland (CET, UTC+1 in November). */
+    private static final Instant CHECKED_AT = Instant.parse("2026-11-17T13:30:05Z");
 
     @Mock
     private JavaMailSender mailSender;
@@ -37,7 +39,7 @@ class EmailNotificationListenerTest {
     @BeforeEach
     void setUp() {
         // called directly, so @Async does not apply here — the method runs synchronously
-        listener = new EmailNotificationListener(mailSender, userRepository, FROM);
+        listener = new EmailNotificationListener(mailSender, userRepository, FROM, ZoneId.of("Europe/Warsaw"));
     }
 
     @Test
@@ -55,7 +57,8 @@ class EmailNotificationListenerTest {
                 .contains("https://api.github.com")
                 .contains("HTTP status: 503")
                 .contains("Service Unavailable")
-                .contains("2026-11-17 14:30:05");
+                // stored in UTC, shown in the configured zone with its name
+                .contains("2026-11-17 14:30:05 CET");
     }
 
     @Test

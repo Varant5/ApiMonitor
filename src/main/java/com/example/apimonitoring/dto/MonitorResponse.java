@@ -3,7 +3,7 @@ package com.example.apimonitoring.dto;
 import com.example.apimonitoring.entity.Monitor;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Schema(description = "Monitored API")
 public record MonitorResponse(
@@ -23,8 +23,8 @@ public record MonitorResponse(
         @Schema(description = "Whether the scheduler checks this monitor", example = "true")
         boolean enabled,
 
-        @Schema(description = "When the monitor was created", example = "2026-11-16T10:15:30")
-        LocalDateTime createdAt
+        @Schema(description = "When the monitor was created", example = "2026-11-16T10:15:30Z")
+        Instant createdAt
 ) {
 
     public static MonitorResponse from(Monitor monitor) {
