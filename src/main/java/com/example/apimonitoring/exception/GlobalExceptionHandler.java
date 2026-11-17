@@ -5,6 +5,7 @@ import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -62,6 +63,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MonitorNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleMonitorNotFoundException(MonitorNotFoundException ex) {
         return error(HttpStatus.NOT_FOUND, "Monitor not found", List.of(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
+        return error(HttpStatus.NOT_FOUND, "User not found", List.of(ex.getMessage()));
+    }
+
+    @ExceptionHandler(EmailAlreadyUsedException.class)
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyUsed(EmailAlreadyUsedException ex) {
+        return error(HttpStatus.CONFLICT, "Email already in use", List.of(ex.getMessage()));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex) {
+        return error(HttpStatus.UNAUTHORIZED, "Unauthorized", List.of("Invalid email or password"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
