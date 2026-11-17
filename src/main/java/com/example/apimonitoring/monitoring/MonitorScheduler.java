@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
@@ -23,7 +24,18 @@ public class MonitorScheduler {
     private final MonitorCheckRepository monitorCheckRepository;
     private final Set<Long> monitorsInProgress = ConcurrentHashMap.newKeySet();
 
-    @Scheduled(fixedRate = 10000)
+    /** How often the scheduler wakes up. */
+    static final Duration TICK = Duration.ofSeconds(10);
+
+    /**
+     * checkedAt is stored after the HTTP request finishes, i.e. a little after the tick started.
+     * Without a tolerance, the next tick (exactly TICK later) would be a fraction of a second "too early",
+     * the check would be skipped and a 10 s monitor would really run every 20 s (60 s -> every 70 s).
+     * Half a tick absorbs that delay (and a slow response) while never checking twice in one tick.
+     */
+    static final Duration TOLERANCE = TICK.dividedBy(2);
+
+    @Scheduled(fixedRate = 10000) // = TICK
     public void runChecks() {
 
         for (Monitor monitor : monitorService.getAllMonitorsForScheduling()) {
@@ -47,7 +59,7 @@ public class MonitorScheduler {
         }
     }
 
-    private boolean isCheckDue(Monitor monitor) {
+    boolean isCheckDue(Monitor monitor) {
 
         Optional<MonitorCheck> lastCheck =
                 monitorCheckRepository.findTopByMonitorIdOrderByCheckedAtDesc(monitor.getId());
@@ -58,7 +70,8 @@ public class MonitorScheduler {
 
         LocalDateTime nextCheckAt = lastCheck.get()
                 .getCheckedAt()
-                .plusSeconds(monitor.getCheckIntervalSeconds());
+                .plusSeconds(monitor.getCheckIntervalSeconds())
+                .minus(TOLERANCE);
 
         return !LocalDateTime.now().isBefore(nextCheckAt);
     }
