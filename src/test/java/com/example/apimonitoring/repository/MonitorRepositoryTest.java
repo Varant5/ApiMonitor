@@ -1,5 +1,7 @@
 package com.example.apimonitoring.repository;
 
+import com.example.apimonitoring.TestcontainersConfiguration;
+import org.springframework.context.annotation.Import;
 import com.example.apimonitoring.entity.Monitor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@Import(TestcontainersConfiguration.class)
 class MonitorRepositoryTest {
 
     @Autowired

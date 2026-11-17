@@ -1,5 +1,7 @@
 package com.example.apimonitoring.repository;
 
+import com.example.apimonitoring.TestcontainersConfiguration;
+import org.springframework.context.annotation.Import;
 import com.example.apimonitoring.entity.Monitor;
 import com.example.apimonitoring.entity.MonitorCheck;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +18,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+@Import(TestcontainersConfiguration.class)
 class MonitorCheckRepositoryTest {
 
     @Autowired
@@ -106,11 +109,6 @@ class MonitorCheckRepositoryTest {
         return m;
     }
 
-    /**
-     * @PrePersist w MonitorCheck zawsze ustawia checkedAt = now(),
-     * więc po zapisie nadpisujemy czas i robimy flush (UPDATE),
-     * żeby mieć pełną kontrolę nad kolejnością w testach.
-     */
     private MonitorCheck createCheck(Monitor owner, String status, LocalDateTime checkedAt) {
         MonitorCheck check = new MonitorCheck();
         check.setMonitor(owner);

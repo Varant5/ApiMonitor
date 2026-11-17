@@ -1,5 +1,7 @@
 package com.example.apimonitoring.integration;
 
+import com.example.apimonitoring.TestcontainersConfiguration;
+import org.springframework.context.annotation.Import;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = "monitoring.scheduler.enabled=false")
 @AutoConfigureMockMvc
+@Import(TestcontainersConfiguration.class)
 class OpenApiDocumentationTest {
 
     @Autowired

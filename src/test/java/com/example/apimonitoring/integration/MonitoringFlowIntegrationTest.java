@@ -1,5 +1,7 @@
 package com.example.apimonitoring.integration;
 
+import com.example.apimonitoring.TestcontainersConfiguration;
+import org.springframework.context.annotation.Import;
 import com.example.apimonitoring.entity.Monitor;
 import com.example.apimonitoring.entity.MonitorCheck;
 import com.example.apimonitoring.monitoring.MonitorScheduler;
@@ -24,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,10 +34,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
         "monitoring.scheduler.enabled=false",
-        "spring.datasource.url=jdbc:h2:mem:integration-test;DB_CLOSE_DELAY=-1",
         "spring.jpa.show-sql=false"
 })
 @AutoConfigureMockMvc
+@Import(TestcontainersConfiguration.class)
 class MonitoringFlowIntegrationTest {
 
     @Autowired
@@ -151,6 +154,23 @@ class MonitoringFlowIntegrationTest {
                 .andExpect(jsonPath("$.message").value("Monitor not found"));
 
         assertThat(monitorCheckRepository.count()).isZero();
+    }
+
+    @Test
+    void shouldDeleteMonitorTogetherWithItsCheckHistory() throws Exception {
+
+        Monitor monitor = saveMonitor("To delete", fakeApiUrl(), true);
+
+        mockMvc.perform(post("/api/monitors/{id}/check", monitor.getId()))
+                .andExpect(status().isOk());
+
+        assertThat(checksOf(monitor)).hasSize(1);
+
+        mockMvc.perform(delete("/api/monitors/{id}", monitor.getId()))
+                .andExpect(status().isNoContent());
+
+        assertThat(monitorRepository.findById(monitor.getId())).isEmpty();
+        assertThat(checksOf(monitor)).isEmpty();
     }
 
     private String fakeApiUrl() {

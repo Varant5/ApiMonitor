@@ -1,0 +1,34 @@
+services:
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-apimonitoring}
+      POSTGRES_USER: ${POSTGRES_USER:-apimonitoring}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apimonitoring}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy   # start the app only when PostgreSQL accepts connections
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-apimonitoring}
+      DB_USERNAME: ${POSTGRES_USER:-apimonitoring}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-apimonitoring}
+      MONITORING_HTTP_TIMEOUT: ${MONITORING_HTTP_TIMEOUT:-5s}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  db-data:
