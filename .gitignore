@@ -34,3 +34,6 @@ build/
 
 ### Environment ###
 .env
+
+### Frontend build copied into Spring Boot (done by the Dockerfile) ###
+src/main/resources/static/

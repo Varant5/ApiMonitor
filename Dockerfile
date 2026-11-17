@@ -1,4 +1,15 @@
-# ---------- Stage 1: build the jar ----------
+# ---------- Stage 1: build the React frontend ----------
+FROM node:24-alpine AS frontend
+WORKDIR /frontend
+
+# Install dependencies in their own layer — reused while package*.json do not change.
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY frontend/ ./
+RUN npm run build
+
+# ---------- Stage 2: build the jar ----------
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /app
 
@@ -8,10 +19,12 @@ COPY pom.xml .
 RUN mvn -B -q dependency:go-offline
 
 COPY src ./src
+# The built frontend becomes static content of the Spring Boot app (served at "/").
+COPY --from=frontend /frontend/dist ./src/main/resources/static
 # Tests run in CI / locally; the image build only packages the app.
 RUN mvn -B -q package -DskipTests
 
-# ---------- Stage 2: minimal runtime image ----------
+# ---------- Stage 3: minimal runtime image ----------
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 

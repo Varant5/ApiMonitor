@@ -35,7 +35,13 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/actuator/health/**",
-            "/error"
+            "/error",
+            // frontend (built React app served by Spring Boot) — the page itself is public,
+            // the data it shows still requires a token
+            "/",
+            "/index.html",
+            "/assets/**",
+            "/favicon.svg"
     };
 
     private final JwtProperties jwtProperties;
